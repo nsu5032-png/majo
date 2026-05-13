@@ -41,6 +41,36 @@ test('middleware context is separate from majo instance', async () => {
   await stream.process()
 })
 
+test('middleware context keeps source state', async () => {
+  const baseDir = path.join(__dirname, 'fixture/source')
+  const onWrite = jest.fn()
+  const nextOnWrite = jest.fn()
+  const stream = majo().source('**', {
+    baseDir,
+    dotFiles: false,
+    onWrite
+  })
+
+  stream.use(context => {
+    expect(context.baseDir).toBe(path.resolve(baseDir))
+    expect(context.sourcePatterns).toEqual(['**'])
+    expect(context.dotFiles).toBe(false)
+    expect(context.onWrite).toBe(onWrite)
+
+    context.meta = { changed: true }
+    context.onWrite = nextOnWrite
+  })
+
+  await stream.process()
+
+  expect(stream.meta).toEqual({ changed: true })
+
+  await stream.dest('./output/context-state', { baseDir: __dirname })
+
+  expect(onWrite).not.toHaveBeenCalled()
+  expect(nextOnWrite).toHaveBeenCalled()
+})
+
 test('file operations can be called before processing', async () => {
   const baseDir = path.join(__dirname, 'fixture/source')
   const stream = majo().source('**', {

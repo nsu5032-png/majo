@@ -320,10 +320,15 @@ export class Majo extends MajoContext {
 
     const context = new MajoContext(files, this.baseDir)
     context.meta = this.meta
+    context.sourcePatterns = this.sourcePatterns
+    context.dotFiles = this.dotFiles
+    context.onWrite = this.onWrite
 
     await new Wares().use(this.middlewares).run(context)
 
     this.files = context.files
+    this.meta = context.meta
+    this.onWrite = context.onWrite
     this.processed = true
 
     return this
