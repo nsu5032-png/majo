@@ -71,6 +71,39 @@ test('middleware context keeps source state', async () => {
   expect(nextOnWrite).toHaveBeenCalled()
 })
 
+test('middleware context supports filtering files', async () => {
+  const stream = majo().source('**', {
+    baseDir: path.join(__dirname, 'fixture/source')
+  })
+
+  stream.use(context => {
+    context.filter(filepath => filepath !== 'should-filter.js')
+  })
+
+  await stream.process()
+
+  expect(stream.fileList).toContain('tmp.js')
+  expect(stream.fileList).not.toContain('should-filter.js')
+})
+
+test('queued file operations can read reassigned stream meta', async () => {
+  const stream = majo().source('**', {
+    baseDir: path.join(__dirname, 'fixture/source')
+  })
+
+  stream.use(context => {
+    context.meta = { keepFilterFixture: true }
+  })
+
+  stream.filter(filepath => {
+    return filepath !== 'should-filter.js' || stream.meta.keepFilterFixture
+  })
+
+  await stream.process()
+
+  expect(stream.fileList).toContain('should-filter.js')
+})
+
 test('file operations can be called before processing', async () => {
   const baseDir = path.join(__dirname, 'fixture/source')
   const stream = majo().source('**', {

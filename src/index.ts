@@ -132,6 +132,20 @@ export class MajoContext {
   }
 
   /**
+   * Filter files
+   * @param fn Filter handler
+   */
+  filter(fn: FilterHandler) {
+    for (const relativePath in this.files) {
+      if (!fn(relativePath, this.files[relativePath])) {
+        delete this.files[relativePath]
+      }
+    }
+
+    return this
+  }
+
+  /**
    * Delete a file
    * @param relativePath Relative path
    */
@@ -213,7 +227,19 @@ export class Majo extends MajoContext {
       fn(this)
       return this
     }
-    return this.use(fn)
+    return this.use(context => {
+      this.syncFromContext(context)
+      return fn(context)
+    })
+  }
+
+  private syncFromContext(context: MajoContext) {
+    this.files = context.files
+    this.meta = context.meta
+    this.baseDir = context.baseDir
+    this.sourcePatterns = context.sourcePatterns
+    this.dotFiles = context.dotFiles
+    this.onWrite = context.onWrite
   }
 
   /**
@@ -221,13 +247,7 @@ export class Majo extends MajoContext {
    * @param fn Filter handler
    */
   filter(fn: FilterHandler) {
-    return this.mutate(context => {
-      for (const relativePath in context.files) {
-        if (!fn(relativePath, context.files[relativePath])) {
-          delete context.files[relativePath]
-        }
-      }
-    })
+    return this.mutate(context => context.filter(fn))
   }
 
   /**
@@ -239,8 +259,7 @@ export class Majo extends MajoContext {
     if (this.processed) {
       return super.transform(relativePath, fn)
     }
-    this.use(context => context.transform(relativePath, fn))
-    return this
+    return this.mutate(context => context.transform(relativePath, fn))
   }
 
   /**
@@ -252,7 +271,7 @@ export class Majo extends MajoContext {
     if (this.processed) {
       return super.writeContents(relativePath, contents)
     }
-    return this.use(context => context.writeContents(relativePath, contents))
+    return this.mutate(context => context.writeContents(relativePath, contents))
   }
 
   /**
@@ -263,7 +282,7 @@ export class Majo extends MajoContext {
     if (this.processed) {
       return super.deleteFile(relativePath)
     }
-    return this.use(context => context.deleteFile(relativePath))
+    return this.mutate(context => context.deleteFile(relativePath))
   }
 
   /**
@@ -275,14 +294,14 @@ export class Majo extends MajoContext {
     if (this.processed) {
       return super.createFile(relativePath, file)
     }
-    return this.use(context => context.createFile(relativePath, file))
+    return this.mutate(context => context.createFile(relativePath, file))
   }
 
   rename(fromPath: string, toPath: string) {
     if (this.processed) {
       return super.rename(fromPath, toPath)
     }
-    return this.use(context => context.rename(fromPath, toPath))
+    return this.mutate(context => context.rename(fromPath, toPath))
   }
 
   /**
@@ -326,9 +345,7 @@ export class Majo extends MajoContext {
 
     await new Wares().use(this.middlewares).run(context)
 
-    this.files = context.files
-    this.meta = context.meta
-    this.onWrite = context.onWrite
+    this.syncFromContext(context)
     this.processed = true
 
     return this
