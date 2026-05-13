@@ -48,6 +48,7 @@ test('file operations can be called before processing', async () => {
   })
 
   stream.transform('tmp.js', contents => contents.replace(`'a'`, `'bbb'`))
+  stream.rename('tmp.js', 'renamed/tmp.js')
   stream.writeContents('should-filter.js', 'module.exports = true\n')
   stream.createFile('created.txt', {
     path: path.join(baseDir, 'created.txt'),
@@ -58,8 +59,9 @@ test('file operations can be called before processing', async () => {
 
   await stream.process()
 
-  expect(stream.fileContents('tmp.js')).toMatch(`const a = () => 'bbb'`)
+  expect(stream.fileContents('renamed/tmp.js')).toMatch(`const a = () => 'bbb'`)
   expect(stream.fileContents('created.txt')).toBe('created')
+  expect(stream.fileList).not.toContain('tmp.js')
   expect(stream.fileList).not.toContain('should-filter.js')
 })
 
